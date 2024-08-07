@@ -1,4 +1,4 @@
-/* evec.c -- initevec, doevec */
+/* evec.c -- initintc, set_evec, irq_dispatch */
 
 #include <xinu.h>
 #include <stdio.h>
@@ -6,44 +6,28 @@
 /*#define STKTRACE*/
 /*#define REGDUMP*/
 
-/*
- * The girmask is used as a mask for interrupts that don't have a
- * handler set. disable() & restore() are OR-ed with it to get the
- * mask actually used.
- */
-uint16	girmask;
-
-extern	void	setirmask(void);
-extern	struct	idt idt[NID];
-extern	struct	segtr idtr;
-extern	long	defevec[];
 extern	void	userret(void);
-extern	void	init8259();
-extern	int	lidt();
 
+uint32	intc_vector[128];	/* Interrupt vector	*/
+char	expmsg1[] = "Unhandled exception. Link Register: 0x%x";
+char	expmsg2[] = "**** EXCEPTION ****";
 /*------------------------------------------------------------------------
- * initevec - initialize exception vectors to a default handler
+ * initintc - Initialize the Interrupt Controller
  *------------------------------------------------------------------------
  */
-int32	initevec()
+int32	initintc()
 {
-	int	i;
+	struct	intc_csreg *csrptr = (struct intc_csreg *)0x48200000;
 
-	girmask = 0;	/* until vectors initialized */
+	/* Reset the interrupt controller */
 
-	for (i=0; i<NID; ++i) {
-		set_evec(i, (long)defevec[i]);	
-	}
+	csrptr->sysconfig |= (INTC_SYSCONFIG_SOFTRESET);
 
-	/*
-	 * "girmask" masks all (bus) interrupts with the default handler.
-	 * initially, all, then cleared as handlers are set via set_evec()
-	 */
-	girmask = 0xfffb;	/* leave bit 2 enabled for IC cascade */
+	/* Wait until reset is complete */
 
-	lidt();
-	init8259();
-        return(OK);
+	while((csrptr->sysstatus & INTC_SYSSTATUS_RESETDONE) == 0);
+
+	return OK;
 }
 
 /*------------------------------------------------------------------------
@@ -52,48 +36,73 @@ int32	initevec()
  */
 int32	set_evec(uint32 xnum, uint32 handler)
 {
-	struct	idt	*pidt;
+	struct	intc_csreg *csrptr = (struct intc_csreg *)0x48200000;
+	uint32	bank;	/* bank number in int controller	*/
+	uint32	mask;	/* used to set bits in bank		*/
 
-	pidt = &idt[xnum];
-	pidt->igd_loffset = handler;
-	pidt->igd_segsel = 0x8;		/* kernel code segment */
-	pidt->igd_mbz = 0;
-	pidt->igd_type = IGDT_TRAPG;
-	pidt->igd_dpl = 0;
-	pidt->igd_present = 1;
-	pidt->igd_hoffset = handler >> 16;
+	/* There are only 127 interrupts allowed 0-126 */
 
-	if (xnum > 31 && xnum < 48) {
-		/* enable the interrupt in the global IR mask */
-		xnum -= 32;
-		girmask &= ~(1<<xnum);
-		setirmask();	/* pass it to the hardware */
+	if(xnum > 127) {
+		return SYSERR;
 	}
-        return(OK);
+
+	/* Install the handler */
+
+	intc_vector[xnum] = handler;
+
+	/* Get the bank number based on interrupt number */
+
+	bank = (xnum/32);
+
+	/* Get the bit inside the bank */
+
+	mask = (0x00000001 << (xnum%32));
+
+	/* Reset the bit to enable that interrupt number */
+
+	csrptr->banks[bank].mir &= (~mask);
+
+	return OK;
 }
 
-char *inames[] = {
-	"divided by zero",
-	"debug exception",
-	"NMI interrupt",
-	"breakpoint",
-	"overflow",
-	"bounds check failed",
-	"invalid opcode",
-	"coprocessor not available",
-	"double fault",
-	"coprocessor segment overrun",
-	"invalid TSS",
-	"segment not present",
-	"stack fault",
-	"general protection violation",
-	"page fault",
-	"coprocessor error"
-};
+/*-------------------------------------------------------------------------
+ * irq_dispatch - call the handler for specific interrupt
+ *-------------------------------------------------------------------------
+ */
+void	irq_dispatch()
+{
+	struct	intc_csreg *csrptr = (struct intc_csreg *)0x48200000;
+	uint32	xnum;		/* Interrupt number of device	*/
+	interrupt (*handler)(); /* Pointer to handler function	*/
 
+	/* Get the interrupt number from the Interrupt controller */
+
+	xnum = csrptr->sir_irq & 0x7F;
+
+	/* Defer scheduling until interrupt is acknowledged */
+
+	resched_cntl(DEFER_START);
+
+	/* If a handler is set for the interrupt, call it */
+
+	if(intc_vector[xnum]) {
+		handler = ( interrupt(*)() )intc_vector[xnum];
+		handler(xnum);
+	}
+
+	/* Acknowledge the interrupt */
+
+	csrptr->control |= (INTC_CONTROL_NEWIRQAGR);
+
+	/* Resume scheduling */
+
+	resched_cntl(DEFER_STOP);
+}
+
+#if 0
 static long *fp;
 /*------------------------------------------------------------------------
- * trap -- print some debugging info when a trap occurred 
+ * trap -- print some debugging info when a trap occurred
  * Note: Need some more work.
  *------------------------------------------------------------------------
 */
@@ -106,14 +115,14 @@ void trap(int inum)
 
 	mask = disable();
 	kprintf("TRAP\n");
-	asm("movl	%ebp,fp");
+	//asm("movl	%ebp,fp");
 	sp = fp + 15;	/* eflags/CS/eip/ebp/regs/trap#/Xtrap/ebp */
 	kprintf("Xinu trap!\n");
 	if (inum < 16)
 		kprintf("exception %d (%s) currpid %d (%s)\n", inum,
 			inames[inum], currpid, proctab[currpid].prname);
 	else
-		kprintf("exception %d currpid %d (%s)\n", inum, currpid, 
+		kprintf("exception %d currpid %d (%s)\n", inum, currpid,
 			proctab[currpid].prname);
 #ifdef REGDUMP
 	kprintf("eflags %X ", *sp--);
@@ -149,5 +158,5 @@ void trap(int inum)
 #endif // STKTRACE
 
 	panic("Trap processing complete...\n");
-	restore(mask);
 }
+#endif

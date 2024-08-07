@@ -2,43 +2,56 @@
 
 #include <xinu.h>
 
-/*------------------------------------------------------------------------
+/*-----------------------------------------------------------------------
  * clkhandler - high level clock interrupt handler
- *------------------------------------------------------------------------
+ *-----------------------------------------------------------------------
  */
 void	clkhandler()
 {
-	static	uint32	count1000 = 1000;	/* Count to 1000 ms	*/
 
-	/* Decrement the ms counter, and see if a second has passed */
+	
+	volatile struct am335x_timer1ms *csrptr =
+			(struct am335x_timer1ms *)0x44E31000;
+			/* Set csrptr to address of timer CSR	    */
 
-	if((--count1000) <= 0) {
+	/* If there is no interrupt, return */
 
-		/* One second has passed, so increment seconds count */
-
-		clktime++;
-
-		/* Reset the local ms counter for the next second */
-
-		count1000 = 1000;
+	if((csrptr->tisr & AM335X_TIMER1MS_TISR_OVF_IT_FLAG) == 0) {
+		return;
 	}
 
-	/* Handle sleeping processes if any exist */
+	/* Acknowledge the interrupt */
+
+	csrptr->tisr = AM335X_TIMER1MS_TISR_OVF_IT_FLAG;
+
+	/* Increment 1000ms counter */
+
+	count1000++;
+
+	/* After 1 sec, increment clktime */
+
+	if(count1000 >= 1000) {
+		clktime++;
+		count1000 = 0;
+	}
+
+	/* check if sleep queue is empty */
 
 	if(!isempty(sleepq)) {
 
-		/* Decrement the delay for the first process on the	*/
-		/*   sleep queue, and awaken if the count reaches zero	*/
+		/* sleepq nonempty, decrement the key of */
+		/* topmost process on sleepq		 */
 
-		if((--queuetab[firstid(sleepq)].qkey) <= 0) {
+		if((--queuetab[firstid(sleepq)].qkey) == 0) {
+
 			wakeup();
 		}
 	}
 
-	/* Decrement the preemption counter, and reschedule when the */
-	/*   remaining time reaches zero			     */
+	/* Decrement the preemption counter */
+	/* Reschedule if necessary	    */
 
-	if((--preempt) <= 0) {
+	if((--preempt) == 0) {
 		preempt = QUANTUM;
 		resched();
 	}

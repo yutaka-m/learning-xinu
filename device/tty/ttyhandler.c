@@ -6,11 +6,13 @@
  *  ttyhandler  -  Handle an interrupt for a tty (serial) device
  *------------------------------------------------------------------------
  */
-void ttyhandler(void) {
+void ttyhandler(uint32 xnum) {
 	struct	dentry	*devptr;	/* Address of device control blk*/
 	struct	ttycblk	*typtr;		/* Pointer to ttytab entry	*/	
 	struct	uart_csreg *csrptr;	/* Address of UART's CSR	*/
-	byte	iir = 0;		/* Interrupt identification	*/
+	uint32	iir = 0;		/* Interrupt identification	*/
+	uint32	lsr = 0;		/* Line status			*/
+
 
 	/* Get CSR address of the device (assume console for now) */
 
@@ -24,7 +26,7 @@ void ttyhandler(void) {
 	/* Decode hardware interrupt request from UART device */
 
         /* Check interrupt identification register */
-	iir = io_inb(csrptr->iir);
+	iir = csrptr->iir;
         if (iir & UART_IIR_IRQ) {
 		return;
         }
@@ -36,12 +38,19 @@ void ttyhandler(void) {
 
         /* Decode the interrupt cause */
 
-        iir &= UART_IIR_IDMASK;		/* Mask off the interrupt ID */
+	iir &= UART_IIR_IDMASK;		/* Mask off the interrupt ID */
         switch (iir) {
 
 	    /* Receiver line status interrupt (error) */
 
 	    case UART_IIR_RLSI:
+		lsr = csrptr->lsr;
+		if(lsr & UART_LSR_BI) { /* Break Interrupt */
+
+			/* Read the RHR register to acknowledge */
+
+			lsr = csrptr->buffer;
+		}
 		return;
 
 	    /* Receiver data available or timed out */
@@ -53,7 +62,7 @@ void ttyhandler(void) {
 
 		/* While chars avail. in UART buffer, call ttyhandle_in	*/
 
-		while ( (io_inb(csrptr->lsr) & UART_LSR_DR) != 0) {
+		while ( (csrptr->lsr & UART_LSR_DR) != 0) {
 			ttyhandle_in(typtr, csrptr);
                 }
 

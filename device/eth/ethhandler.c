@@ -3,132 +3,121 @@
 #include <xinu.h>
 
 /*------------------------------------------------------------------------
- * eth_rxPackets - handler for receiver interrupts
+ * ethhandler - TI AM335X Ethernet Interrupt Handler
  *------------------------------------------------------------------------
  */
-local 	void 	eth_rxPackets(
-	struct 	ethcblk	*ethptr 	/* ptr to control block		*/
+interrupt ethhandler (
+		uint32	xnum			/* IRQ number		*/
 	)
 {
-	struct	eth_rx_desc *descptr;/* ptr to ring descriptor 	*/
-	uint32	tail;			/* pos to insert next packet	*/
-	uint32	status;			/* status of ring descriptor 	*/
-	int numdesc; 			/* num. of descriptor reclaimed	*/
+	struct	eth_a_csreg *csrptr;		/* Ethernet CSR pointer	*/
+	struct	eth_a_tx_desc *tdescptr;	/* Tx desc pointer	*/
+	struct	eth_a_rx_desc *rdescptr;	/* Rx desc pointer	*/
+	struct	ethcblk *ethptr = &ethertab[0];	/* Ethernet ctl blk ptr	*/
 
-	for (numdesc = 0; numdesc < ethptr->rxRingSize; numdesc++) {
+	csrptr = (struct eth_a_csreg *)ethptr->csr;
 
-		/* Insert new arrived packet to the tail */
+	if(xnum == ETH_AM335X_TXINT) {	/* Transmit interrupt */
 
-		tail = ethptr->rxTail;
-		descptr = (struct eth_rx_desc *)ethptr->rxRing + tail;
-		status = descptr->status;
+		/* Get pointer to first desc in queue	*/
 
-		if (status == 0) {
-			break;
+		tdescptr = (struct eth_a_tx_desc *)ethptr->txRing +
+							ethptr->txHead;
+
+		/* Defer scheduling until all descs are processed */
+
+		resched_cntl(DEFER_START);
+
+		while(semcount(ethptr->osem) < (int32)ethptr->txRingSize) {
+
+			/* If desc owned by DMA, check if we need to	*/
+			/* Restart the transmission			*/
+
+			if(tdescptr->stat & ETH_AM335X_TDS_OWN) {
+				if(csrptr->stateram->tx_hdp[0] == 0) {
+					csrptr->stateram->tx_hdp[0] =
+							(uint32)tdescptr;
+				}
+				break;
+			}
+
+			/* Acknowledge the interrupt	*/
+
+			csrptr->stateram->tx_cp[0] = (uint32)tdescptr;
+
+			/* Increment the head index of the queue	*/
+			/* And go to the next descriptor in queue	*/
+
+			ethptr->txHead++;
+			tdescptr++;
+			if(ethptr->txHead >= ethptr->txRingSize) {
+				ethptr->txHead = 0;
+				tdescptr = (struct eth_a_tx_desc *)
+							ethptr->txRing;
+			}
+
+			/* Signal the output semaphore */
+
+			signal(ethptr->osem);
 		}
 
-		ethptr->rxTail 
-			= (ethptr->rxTail + 1) % ethptr->rxRingSize;
+		/* Acknowledge the transmit interrupt */
+
+		csrptr->cpdma->eoi_vector = 0x2;
+
+		/* Resume rescheduling	*/
+
+		resched_cntl(DEFER_STOP);
 	}
+	else if(xnum == ETH_AM335X_RXINT) {	/* Receive interrupt */
 
-	signaln(ethptr->isem, numdesc);
+		/* Get the pointer to last desc in the queue	*/
 
-	return;
-}
+		rdescptr = (struct eth_a_rx_desc *)ethptr->rxRing +
+							ethptr->rxTail;
 
-/*------------------------------------------------------------------------
- * eth_txPackets - handler for transmitter interrupts
- *------------------------------------------------------------------------
- */
-local 	void 	eth_txPackets(
-	struct	ethcblk	*ethptr		/* ptr to control block		*/
-	)
-{
-	struct	eth_tx_desc *descptr;/* ptr to ring descriptor 	*/
-	uint32 	head; 			/* pos to reclaim descriptor	*/
-	char 	*pktptr; 		/* ptr used during packet copy  */
-	int 	numdesc; 		/* num. of descriptor reclaimed	*/
+		/* Defer scheduling until all descriptors are processed	*/
 
-	for (numdesc = 0; numdesc < ethptr->txRingSize; numdesc++) {
-		head = ethptr->txHead;
-		descptr = (struct eth_tx_desc *)ethptr->txRing + head;
+		resched_cntl(DEFER_START);
 
-		if (!(descptr->upper.data & E1000_TXD_STAT_DD))
-			break;
+		while(semcount(ethptr->isem) < (int32)ethptr->rxRingSize) {
 
-		/* Clear the write-back descriptor and buffer */
+			/* Check if we need to restart the DMA	*/
 
-		descptr->lower.data = 0;
-		descptr->upper.data = 0;
-		pktptr = (char *)((uint32)(descptr->buffer_addr &
-					   ADDR_BIT_MASK));
-		memset(pktptr, '\0', ETH_BUF_SIZE);
+			if(rdescptr->stat & ETH_AM335X_RDS_OWN) {
+				if(csrptr->stateram->rx_hdp[0] == 0) {
+					csrptr->stateram->rx_hdp[0] =
+							(uint32)rdescptr;
+				}
+				break;
+			}
 
-		ethptr->txHead 
-			= (ethptr->txHead + 1) % ethptr->txRingSize;
+			/* Acknowledge the interrupt	*/
+
+			csrptr->stateram->rx_cp[0] = (uint32)rdescptr;
+
+			/* Increment the tail index of the queue	*/
+			/* And go to the next descriptor in the queue	*/
+
+			ethptr->rxTail++;
+			rdescptr++;
+			if(ethptr->rxTail >= ethptr->rxRingSize) {
+				ethptr->rxTail = 0;
+				rdescptr = (struct eth_a_rx_desc *)
+							ethptr->rxRing;
+			}
+
+			/* Signal the input semaphore	*/
+
+			signal(ethptr->isem);
+		}
+
+		/* Acknowledge the receive interrupt */
+
+		csrptr->cpdma->eoi_vector = 0x1;
+
+		/* Resume rescheduling	*/
+
+		resched_cntl(DEFER_STOP);
 	}
-
-	signaln(ethptr->osem, numdesc);
-
-	return;
-}
-
-
-/*------------------------------------------------------------------------
- * ethhandler - decode and handle interrupt from an E1000 device
- *------------------------------------------------------------------------
- */
-interrupt ethhandler(void)
-{
-	uint32	status;
-	struct  dentry  *devptr;        /* address of device control blk*/
-	struct 	ethcblk	*ethptr;	/* ptr to control block		*/
-
-	/* Initialize structure pointers */
-
-	devptr = (struct dentry *) &devtab[ETHER0];
-	
-	/* Obtain a pointer to the tty control block */
-
-	ethptr = &ethertab[devptr->dvminor];
-
-	/* Invoke the device-specific interrupt handler */
-
-	/* Disable device interrupt */
-
-	ethIrqDisable(ethptr);
-
-	/* Obtain status bits from device */
-
-	status = eth_io_readl(ethptr->iobase, E1000_ICR);
-
-	/* Not our interrupt */
-
-	if (status == 0) {
-		ethIrqEnable(ethptr);
-		return;
-	}
-
-	resched_cntl(DEFER_START);
-
-	if (status & E1000_ICR_LSC) {
-	}
-
-	if (status & E1000_ICR_RXT0) {
-		ethptr->rxIrq++;
-		eth_rxPackets(ethptr);
-	}
-
-	if (status & E1000_ICR_TXDW) {
-		ethptr->txIrq++;
-		eth_txPackets(ethptr);
-	}
-
-	/* Enable device interrupt */
-
-	ethIrqEnable(ethptr);
-	
-	resched_cntl(DEFER_STOP);
-
-	return;
 }

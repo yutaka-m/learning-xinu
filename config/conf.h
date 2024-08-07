@@ -49,17 +49,23 @@ extern	struct	dentry	devtab[]; /* one entry per device */
 #define LFILE3              21	/* type lfl      */
 #define LFILE4              22	/* type lfl      */
 #define LFILE5              23	/* type lfl      */
-#define PIPE                24	/* type pipem    */
-#define PIPE0               25	/* type pip      */
-#define PIPE1               26	/* type pip      */
-#define PIPE2               27	/* type pip      */
-#define PIPE3               28	/* type pip      */
-#define PIPE4               29	/* type pip      */
-#define PIPE5               30	/* type pip      */
-#define PIPE6               31	/* type pip      */
-#define PIPE7               32	/* type pip      */
-#define PIPE8               33	/* type pip      */
-#define PIPE9               34	/* type pip      */
+#define GPIO0               24	/* type gpio     */
+#define GPIO1               25	/* type gpio     */
+#define GPIO2               26	/* type gpio     */
+#define GPIO3               27	/* type gpio     */
+#define SPI0                28	/* type spi      */
+#define SPI1                29	/* type spi      */
+#define PIPE                30	/* type pipem    */
+#define PIPE0               31	/* type pip      */
+#define PIPE1               32	/* type pip      */
+#define PIPE2               33	/* type pip      */
+#define PIPE3               34	/* type pip      */
+#define PIPE4               35	/* type pip      */
+#define PIPE5               36	/* type pip      */
+#define PIPE6               37	/* type pip      */
+#define PIPE7               38	/* type pip      */
+#define PIPE8               39	/* type pip      */
+#define PIPE9               40	/* type pip      */
 
 /* Control block sizes */
 
@@ -73,10 +79,12 @@ extern	struct	dentry	devtab[]; /* one entry per device */
 #define	Nlfs	1
 #define	Nlfl	6
 #define	Nnam	1
+#define	Ngpio	4
+#define	Nspi	2
 #define	Npipem	1
 #define	Npip	10
 
-#define NDEVS 35
+#define NDEVS 41
 
 
 /* Configuration and Size Constants */
@@ -87,7 +95,3 @@ extern	struct	dentry	devtab[]; /* one entry per device */
 #define	IRQ_TIMER    IRQ_HW5	/* timer IRQ is wired to hardware 5	*/
 #define	IRQ_ATH_MISC IRQ_HW4	/* Misc. IRQ is wired to hardware 4	*/
 #define CLKFREQ      200000000	/* 200 MHz clock			*/
-
-#ifndef	ETHER0
-#define	ETHER0	0
-#endif

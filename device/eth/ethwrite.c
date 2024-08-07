@@ -3,72 +3,82 @@
 #include <xinu.h>
 
 /*------------------------------------------------------------------------
- * ethwrite - write a packet to an E1000E device
+ * ethwrite - enqueue a packet for transmission on TI AM335X Ethernet
  *------------------------------------------------------------------------
  */
-devcall	ethwrite(
-	struct	dentry	*devptr, 	/* entry in device switch table	*/
-	void	*buf,			/* buffer that holds a packet	*/
-	int32	len			/* length of buffer		*/
+int32	ethwrite (
+		struct	dentry *devptr,
+		char	*buf,
+		int32	count
 	)
 {
-	struct	ethcblk	*ethptr; 	/* ptr to entry in ethertab 	*/
-	struct 	eth_tx_desc *descptr;/* ptr to ring descriptor 	*/
-	char 	*pktptr; 		/* ptr used during packet copy  */
-	uint32	tail;			/* index of ring buffer for pkt	*/
-	uint32 	tdt;
+	struct	ethcblk *ethptr;	/* Ether entry pointer	*/
+	struct	eth_a_csreg *csrptr;	/* Ethernet CSR pointer	*/
+	struct	eth_a_tx_desc *tdescptr;/* Tx Desc. pointer	*/
+	struct	eth_a_tx_desc *prev;	/* Prev. Desc. pointer	*/
 
 	ethptr = &ethertab[devptr->dvminor];
 
-	/* Verify Ethernet interface is up and arguments are valid */
+	/* Get the pointer to the Ethernet CSR */
+	csrptr = (struct eth_a_csreg *)ethptr->csr;
 
-	if ((ETH_STATE_UP != ethptr->state)
-			|| (len < ETH_HDR_LEN)
-			|| (len > ETH_MAX_PKT_LEN) ) {
-		return SYSERR;
-	}
-
-	/* If padding of short packet is enabled, the value in TX 	*/
-	/* 	descriptor length feild should be not less than 17 	*/
-	/* 	bytes */
-
-	if (len < 17)
-		return SYSERR;
-
-	/* Wait for a free ring slot */
-
+	/* Wait for an empty slot in the queue */
 	wait(ethptr->osem);
 
-	/* Find the tail of the ring to insert packet */
-	
-	tail = ethptr->txTail;
-	descptr = (struct eth_tx_desc *)ethptr->txRing + tail;
+	/* Get the pointer to the next descriptor */
+	tdescptr = (struct eth_a_tx_desc *)ethptr->txRing +
+							ethptr->txTail;
 
-	/* Copy packet to transmit ring buffer */
-	
-	pktptr = (char *)((uint32)descptr->buffer_addr & ADDR_BIT_MASK);
-	memcpy(pktptr, buf, len);
+	/* Adjust count if greater than max. possible packet size */
+	if(count > PACKLEN) {
+		count = PACKLEN;
+	}
 
-	/* Insert transmitting command and length */
-	
-	descptr->lower.data &= E1000_TXD_CMD_DEXT; 
-	descptr->lower.data = E1000_TXD_CMD_IDE |
-			      E1000_TXD_CMD_RS | 
-			      E1000_TXD_CMD_IFCS |
-			      E1000_TXD_CMD_EOP |
-			      len;
-	descptr->upper.data = 0;
+	/* Initialize the descriptor */
+	tdescptr->next = NULL;
+	tdescptr->buflen = count;
+	tdescptr->bufoff = 0;
+	tdescptr->packlen = count;
+	tdescptr->stat = (ETH_AM335X_TDS_SOP |	/* Start of packet	*/
+			  ETH_AM335X_TDS_EOP |	/* End of packet	*/
+			  ETH_AM335X_TDS_OWN |	/* Own flag set for DMA	*/
+			  ETH_AM335X_TDS_DIR |	/* Directed packet	*/
+			  ETH_AM335X_TDS_P1);	/* Output port is port1	*/
 
-	/* Add descriptor by advancing the tail pointer */
-	
-	tdt = eth_io_readl(ethptr->iobase, E1000_TDT(0));
-	tdt = (tdt + 1) % ethptr->txRingSize;
-	eth_io_writel(ethptr->iobase, E1000_TDT(0), tdt);
+	/* Copy the packet into the Tx buffer */
+	memcpy((char *)tdescptr->buffer, buf, count);
 
-	/* Advance the ring tail pointing to the next available ring 	*/
-	/* 	descriptor 						*/
-	
-	ethptr->txTail = (ethptr->txTail + 1) % ethptr->txRingSize;
+	/* TODO Figure out why we need this hack	*/
+	/* This ethernet device does not send packets smaller than 60	*/
+	/* bytes; So pad a small packet to make it 60 bytes long	*/
 
-	return len;
+	if(count < 60) {
+		memset((char *)tdescptr->buffer+count, 0, 60-count);
+		tdescptr->buflen = 60;
+		tdescptr->packlen = 60;
+	}
+
+	/* Insert the descriptor into Tx queue */
+
+	if(csrptr->stateram->tx_hdp[0] == 0) {
+		/* Tx queue is empty, this desc. will be the first */
+		csrptr->stateram->tx_hdp[0] = (uint32)tdescptr;
+	}
+	else {
+		/* Tx queue not empty, insert at end */
+		prev = (struct eth_a_tx_desc *)
+				csrptr->stateram->tx_hdp[0];
+		while(prev->next != NULL) {
+			prev = prev->next;
+		}
+		prev->next = tdescptr;
+	}
+
+	/* Increment the tail index of the Tx ring */
+	ethptr->txTail++;
+	if(ethptr->txTail >= ethptr->txRingSize) {
+		ethptr->txTail = 0;
+	}
+
+	return count;
 }
