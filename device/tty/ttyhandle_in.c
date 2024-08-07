@@ -18,7 +18,7 @@ void	ttyhandle_in (
 	char	ch;			/* Next char from device	*/
 	int32	avail;			/* Chars available in buffer	*/
 
-	ch = io_inb(csrptr->buffer);
+	ch = csrptr->buffer;
 
 	/* Compute chars available */
 
@@ -215,7 +215,7 @@ local	void	erase1(
 			}
 		} else {  /* A normal character that is printable	*/
 			eputc(TY_BACKSP, typtr, csrptr);
-			if (typtr->tyieback) {	/* erase the character	*/
+			if (typtr->tyieback) {	/* Erase the character	*/
 				eputc(TY_BLANK, typtr, csrptr);
 				eputc(TY_BACKSP, typtr, csrptr);
 			}

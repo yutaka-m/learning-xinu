@@ -20,9 +20,8 @@
 /* Avoid warnings for undeclared items */
 
 extern	char	*yytext;
-#include ".yyleng"
+extern	int	yyleng;
 extern	int	yylex(void);
-
 
 
 /********************************************************************************/

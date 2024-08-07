@@ -91,7 +91,10 @@ void	nulluser()
 	/*  something to run when no other process is ready to execute)	*/
 
 	while (TRUE) {
-		;		/* Do nothing */
+
+		/* Halt until there is an external interrupt */
+
+		asm volatile ("hlt");
 	}
 
 }
@@ -100,7 +103,7 @@ void	nulluser()
 /*------------------------------------------------------------------------
  *
  * startup  -  Finish startup takss that cannot be run from the Null
- *		  process and then create and resume the main process
+ *		  process and then create and resumethe main process
  *
  *------------------------------------------------------------------------
  */
@@ -125,7 +128,6 @@ local process	startup(void)
 		kprintf("Obtained IP address  %s   (0x%08x)\n", str,
 								ipaddr);
 	}
-
 	/* Create a process to execute function main() */
 
 	resume(create((void *)main, INITSTK, INITPRIO,
@@ -148,6 +150,10 @@ static	void	sysinit()
 	int32	i;
 	struct	procent	*prptr;		/* Ptr to process table entry	*/
 	struct	sentry	*semptr;	/* Ptr to semaphore table entry	*/
+
+	/* Platform Specific Initialization */
+
+	platinit();
 
 	/* Reset the console */
 
@@ -209,11 +215,6 @@ static	void	sysinit()
 	/* Create a ready list for processes */
 
 	readylist = newqueue();
-
-
-	/* initialize the PCI bus */
-
-	pci_init();
 
 	/* Initialize the real time clock */
 

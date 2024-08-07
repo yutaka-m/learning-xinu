@@ -8,7 +8,7 @@
  *------------------------------------------------------------------------
  */
 syscall	kputc(
-	  byte	c			/* character to write		*/
+	  byte	c			/* Character to write		*/
 	)
 {
 	struct	dentry	*devptr;
@@ -32,21 +32,22 @@ syscall	kputc(
 
 	/* Repeatedly poll the device until it becomes nonbusy */
 
-	while ((io_inb(csrptr->lsr) & UART_LSR_THRE) == 0) {
+	while ( (csrptr->lsr & UART_LSR_THRE) == 0 ) {
 		;
 	}
 
 	/* Write the character */
-	io_outb(csrptr->buffer, c);
+
+	csrptr->buffer = c;
 
 	/* Honor CRLF - when writing NEWLINE also send CARRIAGE RETURN	*/
 
 	if (c == '\n') {
 		/* Poll until transmitter queue is empty */
-		while ((io_inb(csrptr->lsr) & UART_LSR_THRE) == 0) {
+		while ( (csrptr->lsr & UART_LSR_THRE) == 0 ) {
 			;
 		}
-		io_outb(csrptr->buffer, '\r');
+		csrptr->buffer = '\r';
 	}
 	restore(mask);
 	return OK;
@@ -76,19 +77,19 @@ syscall kgetc(void)
 		return SYSERR;
 	}
 
-	irmask = io_inb(csrptr->ier);	/* Save UART interrupt state.   */
-	io_outb(csrptr->ier, 0);	/* Disable UART interrupts.     */
+	irmask = csrptr->ier;		/* Save UART interrupt state.   */
+	csrptr->ier = 0;		/* Disable UART interrupts.     */
 
-	/* wait for UART transmit queue to empty */
+	/* Wait for UART transmit queue to empty */
 
-	while ((io_inb(csrptr->lsr) & UART_LSR_DR) == 0) {
+	while (0 == (csrptr->lsr & UART_LSR_DR)) {
 		; /* Do Nothing */
 	}
 
 	/* Read character from Receive Holding Register */
 
-	c = io_inb(csrptr->rbr);
-	io_outb(csrptr->ier, irmask);	/* Restore UART interrupts.     */
+	c = csrptr->rbr;
+	csrptr->ier = irmask;		/* Restore UART interrupts.     */
 
 	restore(mask);
 	return c;

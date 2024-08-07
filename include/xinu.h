@@ -11,7 +11,6 @@
 #include <bufpool.h>
 #include <clock.h>
 #include <ports.h>
-#include <io.h>
 #include <uart.h>
 #include <tty.h>
 #include <device.h>
@@ -33,12 +32,13 @@
 #include <date.h>
 #include <prototypes.h>
 #include <delay.h>
-#include <i386.h>
 #include <pci.h>
-#include <e1000e.h>
+#include <quark_eth.h>
 #include <quark_pdat.h>
 #include <quark_irq.h>
 #include <multiboot.h>
 #include <stdio.h>
 #include <string.h>
+#include <hpet.h>
+#include <apic.h>
 #include <pipe.h>

@@ -1,9 +1,4 @@
 
-/* in file 82545EMInit.c */
-extern	status	_82545EMInit(struct ethcblk *);
-extern	status	_82545EM_read_phy_reg(struct ethcblk *, uint32, uint16 *);
-extern	status	_82545EM_write_phy_reg(struct ethcblk *, uint32, uint16);
-
 /* in file addargs.c */
 extern	status	addargs(pid32, int32, int32[], char *, void *);
 
@@ -28,7 +23,7 @@ extern	syscall	chprio(pid32, pri16);
 extern	uint32	clkcount(void);
 
 /* in file clkhandler.c */
-extern	interrupt clkhandler(void);
+extern	interrupt clkhandler(int32);
 
 /* in file clkinit.c */
 extern	void	clkinit(void);
@@ -57,14 +52,27 @@ extern	status	dnslookup(char *, uint32 *);
 /* in file dot2ip.c */
 extern	status	dot2ip(char *, uint32 *);
 
-/* in file getticks.c */
-extern	uint64	getticks(void);
+/* in file ethinit.c */
+extern 	int32	ethinit(struct dentry *);
 
-/* in file intutils.S */
-extern	intmask	disable(void);
+/* in file ethread.c */
+extern	devcall	ethread(struct dentry *, char *, int32);
 
-/* in file intutils.S */
-extern	void	enable(void);
+/* in file ethwrite.c */
+extern	int32	ethwrite(struct dentry *, char *, int32);
+
+/* in file ethcontrol.c */
+extern 	devcall ethcontrol(struct dentry *, int32, int32, int32);
+
+/* in file ethhandler.c */
+extern	interrupt ethhandler(uint32);
+
+/* in file ethdispatch.S */
+extern	void	ethdispatch(void);
+
+/* in file ethmcast.c */
+extern	int32	ethmcast_add(struct ethcblk *, byte[]);
+extern	int32	ethmcast_remove(struct ethcblk *, byte[]);
 
 /* in file exit.c */
 extern	void	exit(void);
@@ -75,30 +83,12 @@ extern int console_init(void);
 /* in file early_imr.c */
 extern int remove_irm_protections(void);
 
-/* in file ethcontrol.c */
-extern	devcall	ethcontrol(struct dentry *, int32, int32, int32);
-extern	void	ethIrqDisable(struct ethcblk *);
-extern	void	ethIrqEnable(struct ethcblk *);
-
-/* in file ethdispatch.S */
-extern	void	ethdispatch(void);
-
-/* in file ethhandler.c */
-extern	interrupt	ethhandler(void);
-
-/* in file ethinit.c */
-extern	devcall	ethinit(struct dentry *);
-
-/* in file ethread.c */
-extern	devcall	ethread(struct dentry *, char *, int32);
-
-/* in file ethwrite.c */
-extern	devcall	ethwrite(struct dentry *, void *, int32);
-
 /* in file evec.c */
 extern	int32	initevec(void);
 extern	int32	set_evec(uint32, uint32);
-extern	void	trap(int32);
+extern	int32	set_ivec(uint32, void *, int32);
+extern	int32	ioapic_irq2vec(int32, int32);
+extern	void	trap(int32, long *);
 
 /* in file exception.c */
 extern  void exception(int32, int32*);
@@ -131,6 +121,9 @@ extern	syscall	getprio(pid32);
 
 /* in file getstk.c */
 extern	char	*getstk(uint32);
+
+/* in file getticks.c */
+extern	uint64	getticks(void);
 
 /* in file gettime.c */
 extern	status	gettime(uint32 *);
@@ -167,6 +160,10 @@ extern	status	insertd(pid32, qid16, int32);
 
 /* in file intr.S */
 extern	uint16	getirmask(void);
+
+/* in file intutils.S */
+extern	intmask	disable(void);
+extern	void	enable(void);
 
 /* in file ioerr.c */
 extern	devcall	ioerr(void);
@@ -397,6 +394,7 @@ extern	devcall	ramclose(struct dentry *);
 extern	devcall	raminit(struct dentry *);
 
 /* in file ramopen.c */
+
 extern	devcall	ramopen(struct dentry *, char *, char *);
 
 /* in file ramread.c */
@@ -528,6 +526,7 @@ extern	devcall	rfsopen(struct dentry  *devptr, char *, char *);
 /* in file rfscomm.c */
 extern	int32	rfscomm(struct rf_msg_hdr *, int32,
 			struct rf_msg_hdr *, int32);
+
 /* in file seek.c */
 extern	syscall	seek(did32, uint32);
 
@@ -590,7 +589,7 @@ extern	void	ttyhandle_in(struct ttycblk *, struct uart_csreg *);
 extern	void	ttyhandle_out(struct ttycblk *, struct uart_csreg *);
 
 /* in file ttyhandler.c */
-extern	void	ttyhandler(void);
+extern	void	ttyhandler(int32);
 
 /* in file ttyinit.c */
 extern	devcall	ttyinit(struct dentry *);
@@ -608,6 +607,7 @@ extern	devcall	ttyread(struct dentry *, char *, int32);
 extern	devcall	ttywrite(struct dentry *, char *, int32);
 
 /* in file udp.c */
+
 extern	void	udp_init(void);
 extern	void	udp_in(struct netpacket *);
 extern	uid32	udp_register(uint32, uint16, uint16);
@@ -619,6 +619,7 @@ extern	status	udp_sendto(uid32, uint32, uint16, char *, int32);
 extern	status	udp_release(uid32);
 extern	void	udp_ntoh(struct netpacket *);
 extern	void	udp_hton(struct netpacket *);
+
 
 /* in file unsleep.c */
 extern	syscall	unsleep(pid32);
