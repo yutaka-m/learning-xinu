@@ -8,7 +8,7 @@
 */
 
 #define	ETH_ADDR_LEN	6		/* Len. of Ethernet (MAC) addr.	*/
-typedef	byte Eaddr[ETH_ADDR_LEN];	/* Physical Ethernet address	*/
+typedef	unsigned char	Eaddr[ETH_ADDR_LEN];/* Physical Ethernet address*/
 
 /* Ethernet packet header */
 
@@ -31,9 +31,9 @@ struct	etherPkt {
 
 #define	ETH_MAX_PKT_LEN	( ETH_HDR_LEN + ETH_VLAN_LEN + ETH_MTU )
 
-#define	ETH_BUF_SIZE		2048	/* A multiple of 16 greater 	*/
-					/*   than the max packet 	*/
-					/*   size (for cache alignment)	*/
+#define	ETH_BUF_SIZE		1522	/* 1500 MTU + 14 ETH header + 4	*/
+					/*  bytes optional VLAN Tagging	*/
+					/*  + 4 Bytes of CRC		*/
 
 /* State of the Ethernet interface */
 
@@ -44,24 +44,25 @@ struct	etherPkt {
 /* Ethernet device control functions */
 
 #define	ETH_CTRL_GET_MAC     	1 	/* Get the MAC for this device	*/
-#define	ETH_CTRL_SET_MAC	2 	/* Set multicast MAC in a slot 	*/
-#define ETH_CTRL_ADD_MCAST	3	/* Add a multicast address	*/
-#define ETH_CTRL_REMOVE_MCAST	4	/* Remove a multicast address	*/
-
-/* NIC hardware types */
-
-#define	NIC_TYPE_82545EM	1	/* The only possibility...	*/
+#define ETH_CTRL_ADD_MCAST	2	/* Add a multicast address	*/
+#define ETH_CTRL_REMOVE_MCAST	3	/* Remove a multicast address	*/
 
 /* Ethernet multicast */
 
 #define ETH_NUM_MCAST		32	/* Max multicast addresses	*/
 
+/* Ehternet NIC type */
+
+#define ETH_TYPE_3C905C 	1	/* 3COM 905C			*/
+#define ETH_TYPE_E1000E 	2	/* Intel E1000E			*/
+#define ETH_TYPE_QUARK_ETH 	3	/* Ethernet on Quark board	*/
+
 /* Control block for Ethernet device */
 
 struct	ethcblk	{
 	byte	state; 		/* ETH_STATE_... as defined above 	*/
-	struct	dentry	*phy;	/* physical eth device for Tx DMA 	*/
-	byte 	type; 		/* NIC type_... as defined above 	*/
+	struct	dentry	*phy;	/* Physical eth device for Tx DMA 	*/
+	byte 	type; 		/* NIC_TYPE_... as defined above 	*/
 
 	/* Pointers to associated structures */
 
@@ -69,6 +70,8 @@ struct	ethcblk	{
 	void	*csr;		/* Control and status regsiter address	*/
 	uint32	pcidev;		/* PCI device number			*/
 	uint32	iobase;		/* I/O base from config			*/
+	uint32  flashbase;      /* Flash base from config	       	*/
+    	uint32	membase; 	/* Memory base for device from config	*/
 
 	void    *rxRing;	/* Ptr to array of recv ring descriptors*/
 	void    *rxBufs; 	/* Ptr to Rx packet buffers in memory	*/
