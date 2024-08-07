@@ -5,10 +5,12 @@
  */
 #define	DELAY(n)                                	\
 {                                               	\
-	register int i = 0;				\
+	volatile long N = 2*n;				\
 							\
-	while(i < (n * 100)) i++;			\
-}							\
+	while(N > 0) {					\
+		N--;					\
+	}						\
+}
 
 /*
  * Delay units are in milli-seconds.

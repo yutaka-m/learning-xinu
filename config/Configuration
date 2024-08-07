@@ -30,15 +30,15 @@ tty:
 		-i ttyinit      -o ionull       -c ionull
 		-r ttyread      -g ttygetc      -p ttyputc
 		-w ttywrite     -s ioerr        -n ttycontrol
-		-intr ttydispatch
+		-intr ttyhandler
 
 /* type of a ethernet device */
 eth:
-	on e1000e
+	on am335x_eth
 		-i ethinit	-o ioerr	-c ioerr
 		-r ethread	-g ioerr	-p ioerr
 		-w ethwrite	-s ioerr	-n ethcontrol
-		-intr ethdispatch
+		-intr ethhandler
 
 /* type of a remote disk system device */
 rds:
@@ -96,6 +96,24 @@ nam:
 		-w ioerr 	-s ioerr 	-n ioerr
 		-intr ioerr
 
+/* type of a gpio device */
+
+gpio:
+	on am335x_gpio
+		-i gpioinit      -o ionull       -c ionull
+		-r gpioread      -g ionull       -p ionull
+		-w gpiowrite     -s ioerr        -n gpiocontrol
+		-intr gpiohandler
+
+/* type of a spi device */
+
+spi:
+	on top
+		-i spiinit	-o ionull	-c ionull
+		-r ionull	-g ionull	-p ionull
+		-w ionull	-s ionull	-n spicontrol
+		-intr ionull
+
 /* type of the main pipe device */
 pipem:
 	on none
@@ -111,19 +129,20 @@ pip:
 		-r pipe_read	-g pipe_getc	-p pipe_putc
 		-w pipe_write	-s ioerr	-n ioerr
 		-intr ionull
+
 %%
 
 /* Actual device declarations that each give the name of a device that	*/
 /*   will be present in the system					*/
 
    /* Define the console device to be a tty and specify CSR*/
-   CONSOLE is tty  on uart  csr 0001770 -irq 0044
-
+   CONSOLE is tty  on uart  csr 0x44E09000 -irq 72
+   
    /* Define a null device */
    NULLDEV is null on nothing
 
    /* Physical Ethernet (raw packet transfer) */
-   ETHER0 is eth   on e1000e csr 0 -irq 0 */
+   ETHER0 is eth   on am335x_eth csr 0 -irq 0
 
    /* Define a namespace device */
    NAMESPACE is nam on top
@@ -163,7 +182,19 @@ pip:
    LFILE3 is lfl on lfs
    LFILE4 is lfl on lfs
    LFILE5 is lfl on lfs
-   
+
+   /* Define the four GPIO devices and the CSR/IRQ for each */
+
+   GPIO0 is gpio  on am335x_gpio  csr 0x44E07000 -irq 96
+   GPIO1 is gpio  on am335x_gpio  csr 0x4804C000 -irq 98
+   GPIO2 is gpio  on am335x_gpio  csr 0x481AC000 -irq 32
+   GPIO3 is gpio  on am335x_gpio  csr 0x481AE000 -irq 62
+
+   /* SPI devices */
+
+   SPI0 is spi on top csr 0x48030000
+   SPI1 is spi on top csr 0x481A0000
+
    /* Main pipe device */
 
    PIPE is pipem on none
@@ -180,6 +211,7 @@ pip:
    PIPE7 is pip on none
    PIPE8 is pip on none
    PIPE9 is pip on none
+
 %%
 
 /* Configuration and Size Constants */
@@ -190,7 +222,3 @@ pip:
 #define	IRQ_TIMER    IRQ_HW5	/* timer IRQ is wired to hardware 5	*/
 #define	IRQ_ATH_MISC IRQ_HW4	/* Misc. IRQ is wired to hardware 4	*/
 #define CLKFREQ      200000000	/* 200 MHz clock			*/
-
-#ifndef	ETHER0
-#define	ETHER0	0
-#endif

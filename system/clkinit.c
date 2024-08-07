@@ -1,49 +1,70 @@
-/* clkinit.c - clkinit (x86) */
+/* clkinit.c - clkinit (BeagleBone Black) */
 
 #include <xinu.h>
 
 uint32	clktime;		/* Seconds since boot			*/
-uint32	ctr1000 = 0;		/* Milliseconds since boot		*/
+uint32  count1000;              /* ms since last clock tick             */
 qid16	sleepq;			/* Queue of sleeping processes		*/
 uint32	preempt;		/* Preemption counter			*/
 
 /*------------------------------------------------------------------------
- * clkinit  -  Initialize the clock and sleep queue at startup (x86)
+ * clkinit  -  Initialize the clock and sleep queue at startup
  *------------------------------------------------------------------------
  */
 void	clkinit(void)
 {
-	uint16	intv;		/* Clock rate in KHz			*/
+	volatile struct am335x_timer1ms *csrptr =
+	(volatile struct am335x_timer1ms *)AM335X_TIMER1MS_ADDR;
+			/* Pointer to timer CSR in BBoneBlack	*/
+	volatile uint32 *clkctrl =
+			(volatile uint32 *)AM335X_TIMER1MS_CLKCTRL_ADDR;
 
-	/* Allocate a queue to hold the delta list of sleeping processes*/
+	*clkctrl = AM335X_TIMER1MS_CLKCTRL_EN;
+	while((*clkctrl) != 0x2) /* Do nothing */ ;
 
-	sleepq = newqueue();
+	/* Reset the timer module */
 
-	/* Initialize the preemption count */
+	csrptr->tiocp_cfg |= AM335X_TIMER1MS_TIOCP_CFG_SOFTRESET;
 
-	preempt = QUANTUM;
+	/* Wait until the reset is complete */
 
-	/* Initialize the time since boot to zero */
+	while((csrptr->tistat & AM335X_TIMER1MS_TISTAT_RESETDONE) == 0)
+		/* Do nothing */ ;
 
-	clktime = 0;
+	/* Set interrupt vector for clock to invoke clkint */
 
-	/* Set interrupt vector for the clock to invoke clkdisp */
+	set_evec(AM335X_TIMER1MS_IRQ, (uint32)clkhandler);
 
-	set_evec(IRQBASE, (uint32)clkdisp);
+	sleepq = newqueue();	/* Allocate a queue to hold the delta	*/
+				/*   list of sleeping processes		*/
 
-	/* Set the hardware clock: timer 0, 16-bit counter, rate */
-	/*   generator mode, and counter runs in binary		 */
+	preempt = QUANTUM;	/* Set the preemption time		*/
 
-	outb(CLKCNTL, 0x34);
+	clktime = 0;		/* Start counting seconds		*/
+        count1000 = 0;
+	/* The following values are calculated for a	*/
+	/*   timer that generates 1ms tick rate		*/
 
-	/* Set the clock rate to 1.190 Mhz; this is 1 ms interrupt rate */
+	csrptr->tpir = 1000000;
+	csrptr->tnir = 0;
+	csrptr->tldr = 0xFFFFFFFF - 26000;
 
-	intv = 1193;	/* Using 1193 instead of 1190 to fix clock skew	*/
+	/* Set the timer to auto reload */
 
-	/* Must write LSB first, then MSB */
+	csrptr->tclr = AM335X_TIMER1MS_TCLR_AR;
 
-	outb(CLOCK0, (char) (0xff & intv) );
-	outb(CLOCK0, (char) (0xff & (intv>>8)));
+	/* Start the timer */
+
+	csrptr->tclr |= AM335X_TIMER1MS_TCLR_ST;
+
+	/* Enable overflow interrupt which will generate */
+	/*   an interrupt every 1 ms			 */
+
+	csrptr->tier = AM335X_TIMER1MS_TIER_OVF_IT_ENA;
+
+	/* Kickstart the timer */
+
+	csrptr->ttgr = 1;
 
 	return;
 }

@@ -3,72 +3,67 @@
 #include <xinu.h>
 
 /*------------------------------------------------------------------------
- * ethread - read a packet from an E1000E device
+ * ethread - read an incoming packet on TI AM335X Ethernet
  *------------------------------------------------------------------------
  */
-devcall	ethread(
-	struct	dentry	*devptr,	/* entry in device switch table	*/
-	char	*buf,			/* buffer to hold packet	*/
-	int32	len			/* length of buffer		*/
+devcall	ethread	(
+		struct	dentry *devptr,
+		char	*buf,
+		int32	count
 	)
 {
-	struct 	ethcblk	*ethptr; 	/* ptr to entry in ethertab	*/
-	struct	eth_rx_desc *descptr;	/* ptr to ring descriptor	*/
-	char	*pktptr;		/* ptr used during packet copy	*/
-	uint32	head;			/* head of ring buffer 		*/
-	uint32	status;			/* status of entry		*/
-	uint32	length;			/* packet length		*/
-	int32 	retval;
-	uint32 	rdt;
+	struct	ethcblk *ethptr;	/* Ethernet ctl blk ptr	*/
+	struct	eth_a_csreg *csrptr;	/* Ethernet CSR pointer	*/
+	struct	eth_a_rx_desc *rdescptr;/* Rx Desc. pointer	*/
+	struct	eth_a_rx_desc *prev;	/* Prev Rx desc pointer	*/
+	uint32	retval;			/* Num of bytes returned*/
 
 	ethptr = &ethertab[devptr->dvminor];
 
-	if ((ETH_STATE_UP != ethptr->state)
-			|| (len < ETH_HDR_LEN)) {
-		return SYSERR;
-	}
+	/* Get the pointer to Ethernet CSR */
+	csrptr = (struct eth_a_csreg *)ethptr->csr;
 
-	/* Wait for a packet to arrive */
-
+	/* Wait for a packet */
 	wait(ethptr->isem);
 
-	/* Find out where to pick up the packet */
+	/* Get pointer to the descriptor */
+	rdescptr = (struct eth_a_rx_desc *)ethptr->rxRing +
+						ethptr->rxHead;
 
-	head = ethptr->rxHead;
-	descptr = (struct eth_rx_desc *)ethptr->rxRing + head;
-	status = descptr->status;
-
-	if (!(status & E1000_RXD_STAT_DD)) { 	/* check for error */
-		kprintf("ethread: packet error!\n");
-		retval = SYSERR;
-	} else { 	/* pick up the packet */			
-		pktptr = (char *)((uint32)(descptr->buffer_addr &
-					   ADDR_BIT_MASK));
-		length = descptr->length;
-		memcpy(buf, pktptr, length);
-		retval = length;
-	}
-	/* Clear up the descriptor and the buffer */
-
-	descptr->length = 0;
-	descptr->csum = 0;
-	descptr->status = 0;
-	descptr->errors = 0;
-	descptr->special = 0;
-	memset((char *)((uint32)(descptr->buffer_addr & ADDR_BIT_MASK)), 
-			'\0', ETH_BUF_SIZE); 
-
-	/* Add newly reclaimed descriptor to the ring */
-
-	if (ethptr->rxHead % E1000_RING_BOUNDARY == 0) {
-		rdt = eth_io_readl(ethptr->iobase, E1000_RDT(0));
-		rdt = (rdt + E1000_RING_BOUNDARY) % ethptr->rxRingSize;
-		eth_io_writel(ethptr->iobase, E1000_RDT(0), rdt);
+	/* Read the packet length */
+	retval = rdescptr->packlen;
+	if(retval > count) {
+		retval = count;
 	}
 
-	/* Advance the head pointing to the next ring descriptor which 	*/
-	/*  	will be ready to be picked up 				*/
-	ethptr->rxHead = (ethptr->rxHead + 1) % ethptr->rxRingSize;
+	/* Copy the packet into user provided buffer */
+	memcpy((char *)buf, (char *)rdescptr->buffer, retval);
+
+	/* Initialize the descriptor for next packet */
+	rdescptr->stat = ETH_AM335X_RDS_OWN;
+	rdescptr->bufoff = 0;
+	rdescptr->buflen = ETH_BUF_SIZE;
+	rdescptr->packlen = 0;
+	rdescptr->next = NULL;
+
+	/* Insert the descriptor into Rx queue */
+	prev = (struct eth_a_rx_desc *)csrptr->stateram->rx_hdp[0];
+	if(prev == NULL) {
+		kprintf("hdp 0, adding %x\n", rdescptr);
+		csrptr->stateram->rx_hdp[0] = (uint32)rdescptr;
+	}
+	else {
+		while(prev->next != NULL) {
+			prev = prev->next;
+		}
+		prev->next = rdescptr;
+	}
+
+	/* Increment the head index of rx ring */
+	ethptr->rxHead++;
+	if(ethptr->rxHead >= ethptr->rxRingSize) {
+		ethptr->rxHead = 0;
+	}
 
 	return retval;
 }

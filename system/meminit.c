@@ -1,42 +1,29 @@
+/* meminit.c - meminit */
+
 #include <xinu.h>
 
-/* Memory bounds */
-
-void	*minheap;		/* Start of heap			*/
-void	*maxheap;		/* Highest valid heap address		*/
+void	*minheap;	/* Start address of heap	*/
+void	*maxheap;	/* End address of heap		*/
 
 /*------------------------------------------------------------------------
- * meminit - initialize memory bounds and the free memory list
+ * meminit - Initialize the free memory list for BeagleBone Black
  *------------------------------------------------------------------------
  */
-void	meminit(void) {
+void	meminit(void)
+{
+	struct	memblk *memptr;	/* Memory block pointer	*/
 
-       struct	memblk	*memptr;	/* Ptr to memory block		*/
+	/* Initialize the minheap and maxheap variables */
 
-       /* Initialize the free memory list */
+	minheap = (void *)&end;
+	maxheap = (void *)MAXADDR;
 
-       /* Note: we pre-allocate  the "hole" between 640K and 1024K */
+	/* Initialize the memory list as one big block */
 
-       maxheap = (void *)0x600000;	/* Assume 64 Mbytes for now */
-       minheap = &end;
+	memlist.mnext = (struct memblk *)minheap;
+	memptr = memlist.mnext;
 
-       memptr = memlist.mnext = (struct memblk *)roundmb(minheap);
-       if ((char *)(maxheap+1) > HOLESTART) {
-       	/* create two blocks that straddle the hole */
-       	memptr->mnext = (struct memblk *)HOLEEND;
-       	memptr->mlength = (int) truncmb((unsigned) HOLESTART -
-            		 (unsigned)&end - 4);
-       	memptr = (struct memblk *) HOLEEND;
-       	memptr->mnext = (struct memblk *) NULL;
-       	memptr->mlength = (int) truncmb( (uint32)maxheap - 
-       			(uint32)HOLEEND - NULLSTK);
-       } else {
-       	/* initialize free memory list to one block */
-       	memlist.mnext = memptr = (struct memblk *) roundmb(&end);
-       	memptr->mnext = (struct memblk *) NULL;
-       	memptr->mlength = (uint32) truncmb((uint32)maxheap -
-       			(uint32)&end - NULLSTK);
-       }
-
-       return;
+	memptr->mnext = (struct memblk *)NULL;
+	memlist.mlength = memptr->mlength =
+		(uint32)maxheap - (uint32)minheap;
 }

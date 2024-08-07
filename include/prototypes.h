@@ -1,11 +1,9 @@
 
-/* in file 82545EMInit.c */
-extern	status	_82545EMInit(struct ethcblk *);
-extern	status	_82545EM_read_phy_reg(struct ethcblk *, uint32, uint16 *);
-extern	status	_82545EM_write_phy_reg(struct ethcblk *, uint32, uint16);
-
 /* in file addargs.c */
 extern	status	addargs(pid32, int32, int32[], char *, void *);
+
+/* in file am335x_eth_init.c */
+extern	int32	am335x_eth_init(struct ethcblk *);
 
 /* in file arp.c */
 extern	void	arp_init(void);
@@ -33,8 +31,8 @@ extern	interrupt clkhandler(void);
 /* in file clkinit.c */
 extern	void	clkinit(void);
 
-/* in file clkdisp.S */
-extern	void	clkdisp(void);
+/* in file clkint.S */
+extern	void	clkint(void);
 
 /* in file close.c */
 extern	syscall	close(did32);
@@ -57,45 +55,27 @@ extern	status	dnslookup(char *, uint32 *);
 /* in file dot2ip.c */
 extern	status	dot2ip(char *, uint32 *);
 
-/* in file getticks.c */
-extern	uint64	getticks(void);
-
-/* in file intutils.S */
-extern	intmask	disable(void);
-
-/* in file intutils.S */
-extern	void	enable(void);
-
-/* in file exit.c */
-extern	void	exit(void);
-
-/* in file kprintf.c */
-extern int console_init(void);
-
-/* in file early_imr.c */
-extern int remove_irm_protections(void);
-
 /* in file ethcontrol.c */
 extern	devcall	ethcontrol(struct dentry *, int32, int32, int32);
-extern	void	ethIrqDisable(struct ethcblk *);
-extern	void	ethIrqEnable(struct ethcblk *);
-
-/* in file ethdispatch.S */
-extern	void	ethdispatch(void);
-
-/* in file ethhandler.c */
-extern	interrupt	ethhandler(void);
 
 /* in file ethinit.c */
-extern	devcall	ethinit(struct dentry *);
+extern 	int32	ethinit(struct dentry *);
+
+/* in file ethhandler.c */
+extern	interrupt ethhandler(uint32);
 
 /* in file ethread.c */
 extern	devcall	ethread(struct dentry *, char *, int32);
 
 /* in file ethwrite.c */
-extern	devcall	ethwrite(struct dentry *, void *, int32);
+extern	int32	ethwrite(struct dentry *, char *, int32);
+
+/* in file exit.c */
+extern	void	exit(void);
 
 /* in file evec.c */
+
+extern	int32	initintc(void);
 extern	int32	initevec(void);
 extern	int32	set_evec(uint32, uint32);
 extern	void	trap(int32);
@@ -132,16 +112,38 @@ extern	syscall	getprio(pid32);
 /* in file getstk.c */
 extern	char	*getstk(uint32);
 
+/* in file getticks.c */
+extern	uint32	getticks(void);
+
 /* in file gettime.c */
 extern	status	gettime(uint32 *);
 
 /* in file getutime.c */
 extern	status	getutime(uint32 *);
 
+/* in file gpiocontrol.c */
+extern	devcall	gpiocontrol(struct dentry *, int32, int32, int32);
+
+/* in file gpiohandler.c */
+extern	void	gpiohandler(uint32);
+
+/* in file gpioinit.c */
+extern	devcall	gpioinit(struct dentry *);
+
+/* in file gpioselect.c */
+extern devcall gpioselect(uint32, uint32, uint32);
+
+/* in file gpioread.c */
+extern	devcall	gpioread(struct dentry *,char *, int32);
+
+/* in file gpiowrite.c */
+extern	devcall	gpiowrite(struct dentry *,  char *, int32);
+
 /* in file halt.S */
 extern	void	halt(void);
 
 /* in file icmp.c */
+
 extern	void	icmp_init(void);
 extern	void	icmp_in(struct netpacket *);
 extern	int32	icmp_register(uint32);
@@ -156,9 +158,6 @@ extern	void	icmp_ntoh(struct netpacket *);
 /* in file init.c */
 extern	syscall	init(did32);
 
-/* in file initialize.c */
-extern	int32	sizmem(void);
-
 /* in file insert.c */
 extern	status	insert(pid32, qid16, int32);
 
@@ -166,7 +165,8 @@ extern	status	insert(pid32, qid16, int32);
 extern	status	insertd(pid32, qid16, int32);
 
 /* in file intr.S */
-extern	uint16	getirmask(void);
+extern	intmask	disable(void);
+extern	void	enable(void);
 
 /* in file ioerr.c */
 extern	devcall	ioerr(void);
@@ -287,7 +287,8 @@ extern	devcall	lpwrite(struct dentry *, char *, int32);
 
 /* in file mark.c */
 extern	void	markinit(void);
-extern	status	mark(int32 *);
+extern	syscall	notmarked(memmark loc);
+extern	syscall	mark(int32 *);
 
 /* in file memcpy.c */
 extern	void	*memcpy(void *, const void *, int32);
@@ -346,9 +347,6 @@ extern	devcall pipe_read(struct dentry *, char *, int32);
 /* in file pipe_write.c */
 extern	devcall pipe_write(struct dentry *, char *, int32);
 
-/* in file pci.c */
-extern	int32	pci_init(void);
-
 /* in file pdump.c */
 extern	void	pdump(struct netpacket *);
 extern	void	pdumph(struct netpacket *);
@@ -382,9 +380,6 @@ extern	syscall	ptsend(int32, umsg32);
 
 /* in file putc.c */
 extern	syscall	putc(did32, char);
-
-/* in file quark_irq.c */
-extern	int32	quark_irq_routing(void);
 
 /* in file queue.c */
 extern	pid32	enqueue(pid32, qid16);
@@ -446,24 +441,6 @@ extern	devcall	rdsread(struct dentry *, char *, int32);
 
 extern	devcall	rdswrite(struct dentry *, char *, int32);
 
-/* in file sdmcclose.c */
-extern	devcall	sdmcclose(struct dentry *);
-
-/* in file sdmcinit.c */
-extern	devcall	sdmcinit(struct dentry *);
-
-/* in file sdmcopen.c */
-extern	devcall	sdmcopen(struct dentry *, char *, char *);
-
-/* in file sdmcread.c */
-extern	devcall	sdmcread(struct dentry *, char *, int32);
-
-/* in file sdmcwrite.c */
-extern	devcall	sdmcwrite(struct dentry *, char *, int32);
-
-/* in file sdmcdispatch.S */
-extern	interrupt	sdmcdispatch(void);
-
 /* in file read.c */
 extern	syscall	read(did32, char *, uint32);
 
@@ -483,7 +460,7 @@ extern	umsg32	recvtime(int32);
 extern	void	resched(void);
 extern	status	resched_cntl(int32);
 
-/* in file intutils.S */
+/* in file intr.S */
 extern	void	restore(intmask);
 
 /* in file resume.c */
@@ -526,8 +503,8 @@ extern	devcall	rfsinit(struct dentry *);
 extern	devcall	rfsopen(struct dentry  *devptr, char *, char *);
 
 /* in file rfscomm.c */
-extern	int32	rfscomm(struct rf_msg_hdr *, int32,
-			struct rf_msg_hdr *, int32);
+extern	int32	rfscomm(struct rf_msg_hdr *, int32, struct rf_msg_hdr *, int32);
+
 /* in file seek.c */
 extern	syscall	seek(did32, uint32);
 
@@ -559,6 +536,12 @@ extern	syscall	signaln(sid32, int32);
 extern	syscall	sleepms(int32);
 extern	syscall	sleep(int32);
 
+/* in file spicontrol.c */
+extern	devcall	spicontrol(struct dentry *, int32, int32, int32);
+
+/* in spiinit.c */
+extern	int32	spiinit(struct dentry *);
+
 /* in file start.S */
 extern	int32	inb(int32);
 extern	int32	inw(int32);
@@ -566,19 +549,14 @@ extern	int32	inl(int32);
 extern	int32	outb(int32, int32);
 extern	int32	outw(int32, int32);
 extern	int32	outl(int32, int32);
-extern	int32	insw(int32, int32 ,int32);
 extern	int32	outsw(int32, int32, int32);
-extern	int32	lidt(void);
-extern	int32	cpuid(void);
+extern	int32	insw(int32, int32 ,int32);
 
 /* in file suspend.c */
 extern	syscall	suspend(pid32);
 
 /* in file ttycontrol.c */
 extern	devcall	ttycontrol(struct dentry *, int32, int32, int32);
-
-/* in file ttydispatch.c */
-extern	interrupt	ttydispatch(void);
 
 /* in file ttygetc.c */
 extern	devcall	ttygetc(struct dentry *);
@@ -590,7 +568,7 @@ extern	void	ttyhandle_in(struct ttycblk *, struct uart_csreg *);
 extern	void	ttyhandle_out(struct ttycblk *, struct uart_csreg *);
 
 /* in file ttyhandler.c */
-extern	void	ttyhandler(void);
+extern	void	ttyhandler(uint32);
 
 /* in file ttyinit.c */
 extern	devcall	ttyinit(struct dentry *);
@@ -608,17 +586,18 @@ extern	devcall	ttyread(struct dentry *, char *, int32);
 extern	devcall	ttywrite(struct dentry *, char *, int32);
 
 /* in file udp.c */
+
 extern	void	udp_init(void);
 extern	void	udp_in(struct netpacket *);
 extern	uid32	udp_register(uint32, uint16, uint16);
 extern	int32	udp_recv(uid32, char *, int32, uint32);
-extern	int32	udp_recvaddr(uid32, uint32 *, uint16 *, char *,
-			     int32, uint32);
+extern	int32	udp_recvaddr(uid32, uint32 *, uint16 *, char *, int32, uint32);
 extern	status	udp_send(uid32, char *, int32);
 extern	status	udp_sendto(uid32, uint32, uint16, char *, int32);
 extern	status	udp_release(uid32);
 extern	void	udp_ntoh(struct netpacket *);
 extern	void	udp_hton(struct netpacket *);
+
 
 /* in file unsleep.c */
 extern	syscall	unsleep(pid32);

@@ -2,10 +2,9 @@
 
 #define UART_BAUD	115200	/* Default console baud rate.		*/
 #define	UART_OUT_IDLE	0x0016	/* determine if transmit idle		*/
-#define	UART_FIFO_SIZE	16	/* chars in UART onboard output FIFO	*/
+#define	UART_FIFO_SIZE	64	/* chars in UART onboard output FIFO	*/
 				/* (16 for later UART chips)		*/
-#define INTEL_UART_PCI_DID	0x0936	/* UART PCI Device ID		*/
-#define INTEL_UART_PCI_VID	0x8086	/* UART PCI Vendor ID		*/
+
 /*
  * Control and Status Register (CSR) definintions for the 16550 UART.
  * The code maps the structure structure directly onto the base address
@@ -13,16 +12,30 @@
  */
 struct	uart_csreg
 {
-	volatile byte	buffer;	/* receive buffer (when read)		*/
+	volatile uint32	buffer;	/* receive buffer (when read)		*/
 				/*   OR transmit hold (when written)	*/
-	volatile byte	ier;	/* interrupt enable			*/
-	volatile byte	iir;	/* interrupt identification (when read)	*/
+	volatile uint32	ier;	/* interrupt enable			*/
+	volatile uint32	iir;	/* interrupt identification (when read)	*/
 				/*   OR FIFO control (when written)	*/
-	volatile byte	lcr;	/* line control register		*/
-	volatile byte	mcr;	/* modem control register		*/
-	volatile byte	lsr;	/* line status register			*/
-	volatile byte	msr;	/* modem status register		*/
-	volatile byte	scr;	/* scratch register			*/
+	volatile uint32	lcr;	/* line control register		*/
+	volatile uint32	mcr;	/* modem control register		*/
+	volatile uint32	lsr;	/* line status register			*/
+	volatile uint32	msr;	/* modem status register		*/
+	volatile uint32	spr;	/* scratch register			*/
+	volatile uint32 mdr1;
+	volatile uint32 res[12];/* unused UART registers		*/
+	volatile uint32 sysc;	/* system configuration register	*/
+	volatile uint32 syss;	/* system status register		*/
+	volatile uint32 wer;
+	volatile uint32 res4;
+	volatile uint32 rxfifo_lvl;
+	volatile uint32 txfifo_lvl;
+	volatile uint32 ier2;
+	volatile uint32 isr2;
+	volatile uint32 freq_sel;
+	volatile uint32 res5[2];
+	volatile uint32 mdr3;
+	volatile uint32 tx_dma_thresh;
 };
 
 /* Alternative names for control and status registers */
@@ -35,11 +48,11 @@ struct	uart_csreg
 
 /* Definintion of individual bits in control and status registers	*/
 
-/* Port offsets from the base */
+/* Divisor values for baud rate */
 
-#define	UART_DLL	0x00	/* value for low byte of divisor latch	*/
+#define	UART_DLL	26	/* value for low byte of divisor latch	*/
 				/*	DLAB=0				*/
-#define UART_DLM	0x01	/* value for high byte of divisor latch	*/
+#define UART_DLM	0	/* value for high byte of divisor latch	*/
 				/*	DLAB=1				*/
 
 /* Line control bits */
@@ -83,7 +96,38 @@ struct	uart_csreg
 
 /* Line status bits */
 
+#define	UART_LSR	5	/* Input" Line Status Register		*/
+
 #define UART_LSR_DR	0x01	/* Data ready				*/
 #define	UART_LSR_BI	0x10	/* Break interrupt indicator		*/
 #define UART_LSR_THRE	0x20	/* Transmit-hold-register empty		*/
 #define UART_LSR_TEMT	0x40	/* Transmitter empty			*/
+
+#define	UART_TX		0	/* offset of transmit buffer		*/
+
+/* MDR1 bits	*/
+#define UART_MDR1_16X	0x00000000
+#define UART_MDR1_16XAB	0x00000002
+#define UART_MDR1_13X	0x00000003
+
+/* SYSC register bits */
+
+#define UART_SYSC_SOFTRESET	0x00000002
+
+/* SYSS register bits */
+
+#define UART_SYSS_RESETDONE	0x00000001
+
+/* UART1 Clock control */
+#define UART1_CLKCTRL_ADDR	0x44e0006c
+#define UART1_CLKCTRL_EN	0x00000002
+
+/* Pad control addresses and modes */
+#define UART0_PADRX_ADDR	0x44E10970
+#define UART0_PADTX_ADDR	0x44E10974
+#define UART0_PADRX_MODE	0
+#define UART0_PADTX_MODE	0
+#define UART1_PADRX_ADDR	0x44E10980
+#define UART1_PADTX_ADDR	0x44E10984
+#define UART1_PADRX_MODE	0
+#define UART1_PADTX_MODE	0

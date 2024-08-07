@@ -18,7 +18,7 @@ void	ttyhandle_out(
 	int32	avail;			/* Available chars in output buf*/
 	int32	uspace;			/* Space left in onboard UART	*/
 					/*   output FIFO		*/
-	byte 	ier = 0;
+	uint32 	ier = 0;
 
 	/* If output is currently held, simply ignore the call */
 
@@ -30,20 +30,20 @@ void	ttyhandle_out(
 
 	if ( (typtr->tyehead == typtr->tyetail) &&
 	     (semcount(typtr->tyosem) >= TY_OBUFLEN) ) {
-		ier = io_inb(csrptr->ier);
-		io_outb(csrptr->ier,ier & ~UART_IER_ETBEI);
+		ier = csrptr->ier;
+		csrptr->ier = ier & ~UART_IER_ETBEI;
 		return;
 	}
 	
-	/* Initialize uspace to the size of the transmit FIFO */
+	/* Initialize uspace to the available space in the Tx FIFO */
 
-	uspace = UART_FIFO_SIZE;
+	uspace = UART_FIFO_SIZE - csrptr->txfifo_lvl;
 
 	/* While onboard FIFO is not full and the echo queue is	*/
 	/*   nonempty, xmit chars from the echo queue		*/
 
 	while ( (uspace>0) &&  typtr->tyehead != typtr->tyetail) {
-		io_outb(csrptr->buffer, *typtr->tyehead++);
+		csrptr->buffer = *typtr->tyehead++;
 		if (typtr->tyehead >= &typtr->tyebuff[TY_EBUFLEN]) {
 			typtr->tyehead = typtr->tyebuff;
 		}
@@ -59,7 +59,7 @@ void	ttyhandle_out(
 		avail = TY_OBUFLEN;
 	}
 	while ( (uspace>0) &&  (avail > 0) ) {
-		io_outb(csrptr->buffer, *typtr->tyohead++);
+		csrptr->buffer = *typtr->tyohead++;
 		if (typtr->tyohead >= &typtr->tyobuff[TY_OBUFLEN]) {
 			typtr->tyohead = typtr->tyobuff;
 		}
@@ -69,6 +69,12 @@ void	ttyhandle_out(
 	}
 	if (ochars > 0) {
 		signaln(typtr->tyosem, ochars);
+	}
+
+	if ( (typtr->tyehead == typtr->tyetail) &&
+	     (semcount(typtr->tyosem) >= TY_OBUFLEN) ) {
+		ier = csrptr->ier;
+		csrptr->ier = (ier & ~UART_IER_ETBEI);
 	}
 	return;
 }
