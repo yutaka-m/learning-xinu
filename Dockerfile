@@ -13,5 +13,3 @@ RUN apt install -y gcc-4.8 && ln -sf /usr/bin/gcc-4.8 /usr/bin/gcc && hash -r
 
 RUN cd /build/compile \
   && make 
-
-# docker run -v $(pwd)/:/data  -it xinu-qemu-system-i386 sh
