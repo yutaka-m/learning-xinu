@@ -80,7 +80,7 @@ void	nulluser()
 
 	/* Initialize the network stack and start processes */
 
-	net_init();
+//	net_init();
 
 	/* Create a process to finish startup and start main */
 
@@ -112,19 +112,19 @@ local process	startup(void)
 
 	/* Use DHCP to obtain an IP address and format it */
 
-	ipaddr = getlocalip();
-	if ((int32)ipaddr == SYSERR) {
-		kprintf("Cannot obtain an IP address\n");
-	} else {
-		/* Print the IP in dotted decimal and hex */
-		ipaddr = NetData.ipucast;
-		sprintf(str, "%d.%d.%d.%d",
-			(ipaddr>>24)&0xff, (ipaddr>>16)&0xff,
-			(ipaddr>>8)&0xff,        ipaddr&0xff);
-	
-		kprintf("Obtained IP address  %s   (0x%08x)\n", str,
-								ipaddr);
-	}
+//	ipaddr = getlocalip();
+//	if ((int32)ipaddr == SYSERR) {
+//		kprintf("Cannot obtain an IP address\n");
+//	} else {
+//		/* Print the IP in dotted decimal and hex */
+//		ipaddr = NetData.ipucast;
+//		sprintf(str, "%d.%d.%d.%d",
+//			(ipaddr>>24)&0xff, (ipaddr>>16)&0xff,
+//			(ipaddr>>8)&0xff,        ipaddr&0xff);
+//
+//		kprintf("Obtained IP address  %s   (0x%08x)\n", str,
+//								ipaddr);
+//	}
 
 	/* Create a process to execute function main() */
 
