@@ -81,3 +81,6 @@ extern	shellcmd  xsh_help	(int32, char *[]);
 
 /* in file xsh_tee.c */
 extern	shellcmd  xsh_tee	(int32, char *[]);
+
+/* in file xsh_ex1.c */
+extern	shellcmd  xsh_ex1	(int32,	char *[]);
