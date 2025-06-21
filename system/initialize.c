@@ -118,7 +118,7 @@ local process	startup(void)
 //	} else {
 //		/* Print the IP in dotted decimal and hex */
 //		ipaddr = NetData.ipucast;
-//		sprintf(str, "%d.%d.%d.%d",
+//		snprintf(str, sizeof(str), "%d.%d.%d.%d",
 //			(ipaddr>>24)&0xff, (ipaddr>>16)&0xff,
 //			(ipaddr>>8)&0xff,        ipaddr&0xff);
 //
