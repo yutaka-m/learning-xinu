@@ -218,7 +218,7 @@ status	ascdate (
 		}
 	}
 
-	sprintf(str, "%3s  %3s %2d  %2d:%02d:%02d %s %d",
+	snprintf(str, 30, "%3s  %3s %2d  %2d:%02d:%02d %s %d",
 		Date.dt_dnam[dayofweek], Date.dt_mnam[month],
 		day, hour, minute, second, dst? dzones[TIMEZONE-5]:
 			zones[TIMEZONE-5], year);

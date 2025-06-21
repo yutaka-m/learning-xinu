@@ -29,7 +29,7 @@ int32	rfscomm (
 	    /* Convert the server name to an IP address */
 
 	    if (dnslookup(RF_SERVER, &Rf_data.rf_ser_ip) == SYSERR) {
-		sprintf(err, "rfs server %s is invalid", RF_SERVER);
+		snprintf(err, sizeof(err), "rfs server %s is invalid", RF_SERVER);
 		panic("err");
 	    }
 

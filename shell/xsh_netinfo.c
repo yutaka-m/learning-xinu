@@ -57,7 +57,7 @@ shellcmd xsh_netinfo(int nargs, char *args[]) {
 	/* IP unicast address in dotted decimal and hex */
 
 	ipaddr = NetData.ipucast;
-	sprintf(str, "%d.%d.%d.%d",
+	snprintf(str, sizeof(str), "%d.%d.%d.%d",
 		(ipaddr>>24)&0xff, (ipaddr>>16)&0xff,
 		(ipaddr>>8)&0xff,        ipaddr&0xff);
 	printf("   %-16s  %-16s  0x%08x\n",
@@ -66,7 +66,7 @@ shellcmd xsh_netinfo(int nargs, char *args[]) {
 	/* IP network broadcast address in dotted decimal & hex	*/
 
 	ipbcast = NetData.ipbcast;
-	sprintf(str, "%d.%d.%d.%d",
+	snprintf(str, sizeof(str), "%d.%d.%d.%d",
 		(ipbcast>>24)&0xff, (ipbcast>>16)&0xff,
 		(ipbcast>>8)&0xff,        ipbcast&0xff);
 	printf("   %-16s  %-16s  0x%08x\n",
@@ -75,7 +75,7 @@ shellcmd xsh_netinfo(int nargs, char *args[]) {
 	/* IP network prefix in dotted decimal & hex */
 
 	ipprefix = NetData.ipprefix;
-	sprintf(str, "%d.%d.%d.%d",
+	snprintf(str, sizeof(str), "%d.%d.%d.%d",
 		(ipprefix>>24)&0xff, (ipprefix>>16)&0xff,
 		(ipprefix>>8)&0xff,        ipprefix&0xff);
 	printf("   %-16s  %-16s  0x%08x\n",
@@ -85,7 +85,7 @@ shellcmd xsh_netinfo(int nargs, char *args[]) {
 
 	ipmask = NetData.ipmask;
 	ipaddr = NetData.ipucast;
-	sprintf(str, "%d.%d.%d.%d",
+	snprintf(str, sizeof(str), "%d.%d.%d.%d",
 		(ipmask>>24)&0xff, (ipmask>>16)&0xff,
 		(ipmask>>8)&0xff,        ipmask&0xff);
 	printf("   %-16s  %-16s  0x%08x\n",
@@ -94,7 +94,7 @@ shellcmd xsh_netinfo(int nargs, char *args[]) {
 	/* Default router in dotted decimal & hex */
 
 	router = NetData.iprouter;
-	sprintf(str, "%d.%d.%d.%d",
+	snprintf(str, sizeof(str), "%d.%d.%d.%d",
 		(router>>24)&0xff, (router>>16)&0xff,
 		(router>>8)&0xff,        router&0xff);
 	printf("   %-16s  %-16s  0x%08x\n",
@@ -104,7 +104,7 @@ shellcmd xsh_netinfo(int nargs, char *args[]) {
 
 	tserver = NetData.ntpserver;
 	if (tserver != 0) {
-		sprintf(str, "%d.%d.%d.%d",
+		snprintf(str, sizeof(str), "%d.%d.%d.%d",
 			(tserver>>24)&0xff, (tserver>>16)&0xff,
 			(tserver>>8)&0xff,        tserver&0xff);
 		printf("   %-16s  %-16s  0x%08x\n",
@@ -115,7 +115,7 @@ shellcmd xsh_netinfo(int nargs, char *args[]) {
 
 	dserver = NetData.dnsserver;
 	if (dserver != 0) {
-		sprintf(str, "%d.%d.%d.%d",
+		snprintf(str, sizeof(str), "%d.%d.%d.%d",
 			(dserver>>24)&0xff, (dserver>>16)&0xff,
 			(dserver>>8)&0xff,        dserver&0xff);
 		printf("   %-16s  %-16s  0x%08x\n",

@@ -22,6 +22,7 @@ extern	int32	fscanf(int32, char *, int32);
 extern	int32	fprintf(int, char *, ...);
 extern	int32	printf(const char *, ...);
 extern	int32	sprintf(char *, char *, ...);
+extern	int32	snprintf(char *, int, char *, ...);
 
 
 /* Prototypes for character input and output functions */
